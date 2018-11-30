@@ -52,7 +52,7 @@ class MoveToFieldActionExecutor(object):
 
         # TODO: Can we handle this more elegantly?
         try:
-            api.content.move(source=obj, taget=value.to_object)
+            api.content.move(source=obj, target=value.to_object)
         except Exception as e:
             self.error(obj, e)
             return False
