@@ -42,8 +42,6 @@ class MoveToFieldActionExecutor(object):
 
     def __call__(self):
         obj = self.event.object
-
-
         field = getattr(self.element, 'field', False)
         if field:
             value = getattr(obj, field, False)

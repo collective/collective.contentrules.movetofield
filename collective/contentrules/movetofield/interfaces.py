@@ -10,4 +10,4 @@ class IMoveToFieldAction(Interface):
         description=_(u"Pick a field which contains the location you wish to"
                       u"move the object to."),
         required=True,
-        vocabulary=u'collective.contentrules.movetofield.relationfields ',)
+        vocabulary=u'collective.contentrules.movetofield.relationfields',)

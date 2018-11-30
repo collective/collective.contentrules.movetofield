@@ -19,9 +19,7 @@ def get_fields(portal_type):
         factory = getUtility(IBehavior, bname)
         behavior = factory.interface
         fields += behavior.names()
-    for field in fields:
-        print '%s (%s)' % (field, type(schema.get(field)))
-    return [field for field in fields if type(schema.get(field)) == RelationChoice]
+    return [(schema.get(field).title, field,) for field in fields if type(schema.get(field)) == RelationChoice]
 
 
 def relationfields(context):
@@ -36,6 +34,7 @@ def relationfields(context):
             fields += get_fields(portal_type)
         except ComponentLookupError:
             pass
-    return SimpleVocabulary([
-        SimpleTerm(value=field) for field in set(fields)
+    return SimpleVocabulary(
+        [SimpleTerm(title='Select...', value=None)] +
+        [SimpleTerm(title=field[0], value=field[1]) for field in set(fields)
     ])
