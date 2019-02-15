@@ -11,3 +11,12 @@ class IMoveToFieldAction(Interface):
                       u"move the object to."),
         required=True,
         vocabulary=u'collective.contentrules.movetofield.relationfields',)
+
+    bypasspermissions = schema.Bool(
+        title=_(u"Bypass User Permissions"),
+        description=_(u"When selected, permissions will be bypassed and the "
+                      u"object will be moved regardless of whether or not the"
+                      u"user has permission to move it."),
+        default=False,
+        required=False
+    )

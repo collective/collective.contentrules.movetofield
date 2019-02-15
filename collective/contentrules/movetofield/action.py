@@ -1,18 +1,27 @@
 # -*- coding:utf-8 -*-
+from logging import getLogger
+
+from AccessControl.SecurityManagement import getSecurityManager
+from AccessControl.SecurityManagement import newSecurityManager
+from AccessControl.SecurityManagement import setSecurityManager
+from AccessControl.User import UnrestrictedUser
 from OFS.SimpleItem import SimpleItem
-from plone import api
-from plone.app.contentrules.browser.formhelper import AddForm
-from plone.app.contentrules.browser.formhelper import EditForm
-from plone.contentrules.rule.interfaces import IExecutable
-from plone.contentrules.rule.interfaces import IRuleElementData
 from Products.CMFPlone import utils
 from Products.statusmessages.interfaces import IStatusMessage
 from collective.contentrules.movetofield import MoveToFieldMessageFactory as _
 from collective.contentrules.movetofield.interfaces import IMoveToFieldAction
+from plone import api
+from plone.app.contentrules.browser.formhelper import AddForm
+from plone.app.contentrules.browser.formhelper import EditForm
+from plone.app.uuid.utils import uuidToObject
+from plone.contentrules.rule.interfaces import IExecutable
+from plone.contentrules.rule.interfaces import IRuleElementData
 from zope.component import adapts
 from zope.formlib import form
-from zope.interface import implements
 from zope.interface import Interface
+from zope.interface import implements
+
+logger = getLogger('collective.contentrules.movetofield')
 
 
 class MoveToFieldAction(SimpleItem):
@@ -21,6 +30,7 @@ class MoveToFieldAction(SimpleItem):
     implements(IMoveToFieldAction, IRuleElementData)
 
     field = ''
+    bypasspermissions = False
     element = "collective.contentrules.movetofield.ApplyMoveToField"
 
     @property
@@ -38,32 +48,58 @@ class MoveToFieldActionExecutor(object):
     def __init__(self, context, element, event):
         self.context = context
         self.element = element
+        self.request = getattr(self.context, 'REQUEST', None)
         self.event = event
 
     def __call__(self):
         obj = self.event.object
         field = getattr(self.element, 'field', False)
+        bypasspermissions = getattr(self.element, 'bypasspermissions', False)
+        value = None
         if field:
             value = getattr(obj, field, False)
             if not value:
                 return False
 
-        # TODO: Can we handle this more elegantly?
-        try:
-            api.content.move(source=obj, target=value.to_object)
-        except Exception as e:
-            self.error(obj, e)
-            return False
+        # It is possible that the value is a list. In this case, we move it
+        # to the first matching item.
+        if type(value) == list and len(value) > 0:
+            value = value[0]
 
+        target = None
+        if type(value) == str:
+            target = uuidToObject(value)
+        elif hasattr(value, 'to_object'):
+            target = value.to_object
+
+        sm = getSecurityManager()
+        portal = api.portal.get()
+        try:
+            try:
+                if bypasspermissions is True:
+                    tmp_user = UnrestrictedUser(sm.getUser().getId(),
+                                                '',
+                                                ['Copy or Move'],
+                                                '')
+                    tmp_user = tmp_user.__of__(portal.acl_users)
+                    newSecurityManager(self.request, tmp_user)
+                api.content.move(source=obj, target=target)
+            except Exception as e:
+                # TODO: Handle exceptions more elegantly
+                self.error(obj, e)
+                return False
+        finally:
+            if bypasspermissions is True:
+                setSecurityManager(sm)
         return True
 
     def error(self, obj, error):
-        request = getattr(self.context, 'REQUEST', None)
-        if request is not None:
-            title = utils.pretty_title_or_id(obj, obj)
-            message = _(u"Unable to apply local roles on ${name}: ${error}",
-                        mapping={'name': title, 'error': error})
-            IStatusMessage(request).addStatusMessage(message, type="error")
+
+        title = utils.pretty_title_or_id(obj, obj)
+        message = _(u"Unable to apply local roles on %s: %s" % (title, error))
+        logger.error(message)
+        if self.request is not None:
+            IStatusMessage(self.request).addStatusMessage(message, type="error")
 
 
 class MoveToFieldAddForm(AddForm):
