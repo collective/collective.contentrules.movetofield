@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 from plone.behavior.interfaces import IBehavior
 from plone.dexterity.interfaces import IDexterityFTI
+from z3c.relationfield.schema import RelationChoice
+from z3c.relationfield.schema import RelationList
 from zope.component import getUtility
 from zope.component.interfaces import ComponentLookupError
+from zope.schema import Choice
+from zope.schema import List
 from zope.schema.interfaces import IVocabularyFactory
 from zope.schema.vocabulary import SimpleTerm
 from zope.schema.vocabulary import SimpleVocabulary
-from z3c.relationfield.schema import RelationChoice
+
 
 def get_fields(portal_type):
     """List all fields from portal_type and behaviors
@@ -19,7 +23,11 @@ def get_fields(portal_type):
         factory = getUtility(IBehavior, bname)
         behavior = factory.interface
         fields += behavior.names()
-    return [(schema.get(field).title, field,) for field in fields if type(schema.get(field)) == RelationChoice]
+    return [(schema.get(field).title, field,) for field in fields if
+            type(schema.get(field)) in [RelationChoice,
+                                        RelationList,
+                                        Choice,
+                                        List]]
 
 
 def relationfields(context):
